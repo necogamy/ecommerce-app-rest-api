@@ -3,38 +3,7 @@ const router = express.Router();
 const pool = require('../db/db');
 const errorHandler = require('errorhandler');
 const createResponse = require('../utils/createResponse');
-if (typeof localStorage === "undefined" || localStorage === null) {
-    var LocalStorage = require('node-localstorage').LocalStorage;
-    localStorage = new LocalStorage('./scratch');
-}
-
-// Middlewares
-router.use(express.json());
-
-router.param('id', async (req, res, next, id) => {
-    try {
-        if (id) {
-            id = Number(id);
-
-            const user = await pool.query(`
-                SELECT *
-                FROM user_data
-                WHERE id = $1
-            `, [id]);
-    
-            if (!user.rows) return res.sendStatus(404)
-            else if (user.rows.length < 1) return res.sendStatus(204);
-    
-            req.id = id;
-            req.user = user;
-            next();
-        }
-    }
-    catch(err) {
-        next(err);
-    }
-});
-
+const { localStorage, SESSION_KEY } = require('../utils/localStorage');
 
 // Routes
 router.get('/users/login', async (req, res) => {
@@ -52,13 +21,11 @@ router.get('/users/login', async (req, res) => {
 
         if (userData.rows.length < 1) return res.status(400).send('Username or password incorrect');
           
-        const SESSION_KEY = 'user_session.key';
         localStorage.setItem(SESSION_KEY, JSON.stringify(userData.rows));
-        const retrieveUserInfo = JSON.parse(localStorage.getItem(SESSION_KEY));
 
-        
-
-        res.status(200).send(userData.rows);
+        res.status(200).send(
+            createResponse(200, 'LOGGED IN', 'ACCESS-GRANTED', 'You now have access to your user-info on /users/my-user')
+        );
     }
     catch(e) {
         res.status(400).send('Username or password incorrect');
@@ -92,6 +59,38 @@ router.post('/users/register', async (req, res) => {
     }
     catch(err) {
         res.status(409).send('Username already exists');
+    }
+});
+
+router.get('/users/my-user', (req, res) => {
+    const retrieveUserInfo = JSON.parse(localStorage.getItem(SESSION_KEY));
+
+    if (!retrieveUserInfo) return res.status(401).send('You must login before access your user data');
+
+    res.status(200).send(retrieveUserInfo);
+});
+
+router.param('id', async (req, res, next, id) => {
+    try {
+        if (id) {
+            id = Number(id);
+
+            const user = await pool.query(`
+                SELECT *
+                FROM user_data
+                WHERE id = $1
+            `, [id]);
+    
+            if (!user.rows) return res.sendStatus(404)
+            else if (user.rows.length < 1) return res.sendStatus(204);
+    
+            req.id = id;
+            req.user = user;
+            next();
+        }
+    }
+    catch(err) {
+        next(err);
     }
 });
 

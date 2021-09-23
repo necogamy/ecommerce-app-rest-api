@@ -4,33 +4,6 @@ const pool = require('../db/db');
 const createResponse = require('../utils/createResponse');
 const errorHandler = require('errorhandler');
 
-// Middlewares
-router.use(express.json());
-
-router.param('id', async (req, res, next, id) => {
-    try {
-        if (id) {
-            id = Number(id);
-
-            const product = await pool.query(`
-                SELECT *
-                FROM product
-                WHERE id = $1
-            `, [id]);
-    
-            if (!product.rows) return res.sendStatus(404)
-            else if (product.rows.length < 1) return res.sendStatus(204);
-    
-            req.id = id;
-            req.product = product;
-            next();
-        }
-    }
-    catch(err) {
-        next(err);
-    }
-});
-
 router.get('/products', async (req, res) => {
     try {
         const products = await pool.query(`
@@ -72,6 +45,30 @@ router.post('/products/add', async (req, res) => {
     }
     catch(err) {
         res.sendStatus(500);
+    }
+});
+
+router.param('id', async (req, res, next, id) => {
+    try {
+        if (id) {
+            id = Number(id);
+
+            const product = await pool.query(`
+                SELECT *
+                FROM product
+                WHERE id = $1
+            `, [id]);
+    
+            if (!product.rows) return res.sendStatus(404)
+            else if (product.rows.length < 1) return res.sendStatus(204);
+    
+            req.id = id;
+            req.product = product;
+            next();
+        }
+    }
+    catch(err) {
+        next(err);
     }
 });
 
